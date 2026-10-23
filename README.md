@@ -14,7 +14,7 @@
 ## 📌 Project Links for Mentor Evaluation
 
 - **Live Demo Link:** `http://localhost:5000` *(Local production build)* | *(Deployable to Render/Vercel/Railway)*
-- **GitHub Repository:** *(See [GitHub Setup & Push Guide](#-github-setup--push-guide) below)*
+- **GitHub Repository:** [https://github.com/Yash-Shukla11/yash1126shukla-imovies](https://github.com/Yash-Shukla11/yash1126shukla-imovies)
 
 ---
 
