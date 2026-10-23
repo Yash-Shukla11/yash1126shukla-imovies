@@ -196,7 +196,7 @@ menu = st.sidebar.radio(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("**Repository:** [GitHub Codebase](https://github.com/Yash-Shukla11/yash1126shukla-imovies)")
+st.sidebar.markdown("**Repository:** [GitHub Codebase](https://github.com/anushka-rathore14/iMovies)")
 st.sidebar.markdown("**Local API Status:** `http://localhost:5000` (Port 5000)")
 
 # ----------------- VIEW 1: BROWSE MOVIES -----------------
@@ -307,7 +307,7 @@ elif menu == "🎟️ Book Tickets":
             st.write(f"GST Tax (18%): ₹{tax}")
             st.markdown(f"### Grand Total: ₹{grand_total}")
             
-        cust_name = st.text_input("Your Full Name:", "Yash Shukla")
+        cust_name = st.text_input("Your Full Name:", "Anushka Rathore")
         payment_method = st.radio("Payment Method:", ["Credit/Debit Card", "UPI / QR", "NetBanking"], horizontal=True)
         
         if st.button("🚀 Pay & Confirm Ticket Reservation"):
@@ -436,4 +436,4 @@ elif menu == "💻 MERN Stack Architecture":
     └── README.md             # Complete documentation
     ```
     """)
-    st.markdown("🔗 **GitHub Repo:** [Yash-Shukla11/yash1126shukla-imovies](https://github.com/Yash-Shukla11/yash1126shukla-imovies)")
+    st.markdown("🔗 **GitHub Repo:** [anushka-rathore14/iMovies](https://github.com/anushka-rathore14/iMovies)")

@@ -12,6 +12,6 @@
     "seed": "cd server && npm run seed"
   },
   "keywords": ["movie-booking", "react", "express", "mongodb", "bootstrap", "jwt"],
-  "author": "Yash Shukla",
+  "author": "Anushka Rathore",
   "license": "MIT"
 }

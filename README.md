@@ -15,7 +15,7 @@
 ## 📌 Project Links for Mentor Evaluation
 
 - 🌐 **Live Demo Link (Streamlit Cloud):** [https://yash1126shukla-imovies-ykkzyr9fdst7apc2ns2uud.streamlit.app/](https://yash1126shukla-imovies-ykkzyr9fdst7apc2ns2uud.streamlit.app/)
-- 💻 **GitHub Repository:** [https://github.com/Yash-Shukla11/yash1126shukla-imovies](https://github.com/Yash-Shukla11/yash1126shukla-imovies)
+- 💻 **GitHub Repository:** [https://github.com/anushka-rathore14/iMovies](https://github.com/anushka-rathore14/iMovies)
 - 🖥️ **Local Production Server:** `http://localhost:5000`
 
 ---
@@ -236,6 +236,6 @@ git push -u origin main
 
 ## 👨‍💻 Author
 
-- **Developer:** Yash Shukla
+- **Developer:** Anushka Rathore
 - **Project Topic:** IMovies - Movie ticket booking made simple
 - **Specialization:** Full Stack Web Development (MERN Stack)
