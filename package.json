@@ -1,0 +1,17 @@
+{
+  "name": "imovies",
+  "version": "1.0.0",
+  "description": "IMovies - Movie ticket booking made simple. Full-stack MERN cinema reservation platform.",
+  "main": "server/server.js",
+  "scripts": {
+    "server": "cd server && npm start",
+    "client": "cd client && npm run dev",
+    "dev": "node -e \"const { spawn } = require('child_process'); spawn('npm', ['run', 'dev'], { cwd: 'server', stdio: 'inherit', shell: true }); spawn('npm', ['run', 'dev'], { cwd: 'client', stdio: 'inherit', shell: true });\"",
+    "build": "cd client && npm run build",
+    "start": "cd server && node server.js",
+    "seed": "cd server && npm run seed"
+  },
+  "keywords": ["movie-booking", "react", "express", "mongodb", "bootstrap", "jwt"],
+  "author": "Yash Shukla",
+  "license": "MIT"
+}
