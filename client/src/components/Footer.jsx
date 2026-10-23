@@ -64,7 +64,7 @@ const Footer = () => {
             &copy; {new Date().getFullYear()} IMovies Cinema Platform. All rights reserved.
           </div>
           <div className="d-flex gap-3 mt-2 mt-md-0">
-            <span>Built with ❤️ by Anushka Rathore</span>
+            <span>Built with ❤️ by Yash Shukla</span>
           </div>
         </div>
       </div>

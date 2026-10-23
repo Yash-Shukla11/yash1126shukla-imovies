@@ -15,7 +15,7 @@
 ## 📌 Project Links for Mentor Evaluation
 
 - 🌐 **Live Demo Link (Streamlit Cloud):** [https://yash1126shukla-imovies-ykkzyr9fdst7apc2ns2uud.streamlit.app/](https://yash1126shukla-imovies-ykkzyr9fdst7apc2ns2uud.streamlit.app/)
-- 💻 **GitHub Repository:** [https://github.com/anushka-rathore14/iMovies](https://github.com/anushka-rathore14/iMovies)
+- 💻 **GitHub Repository:** [https://github.com/Yash-Shukla11/yash1126shukla-imovies](https://github.com/Yash-Shukla11/yash1126shukla-imovies)
 - 🖥️ **Local Production Server:** `http://localhost:5000`
 
 ---
@@ -84,15 +84,18 @@ imovies/
 │   ├── index.html
 │   ├── package.json
 │   └── vite.config.js
-├── server/                     # Backend API (Express.js, Node.js)
-│   ├── config/                 # Database connection (MongoDB / Resilient Store)
-│   ├── controllers/            # Auth, Movies, Showtimes, Bookings, Admin controllers
+├── server/                     # Backend API (Express.js, Node.js, Socket.io)
+│   ├── config/                 # Database connection (MongoDB / Dual-Mode Store)
+│   ├── controllers/            # Auth, Movies, Theatres, Showtimes, Bookings, Admin controllers
 │   ├── data/                   # Initial seeds (Sample movies, showtimes, users)
-│   ├── middleware/             # JWT auth & error handler middlewares
-│   ├── models/                 # Mongoose schemas (User, Movie, Showtime, Booking)
-│   ├── routes/                 # Express API routes
-│   ├── server.js               # Express entrypoint & static client server
+│   ├── middleware/             # JWT auth, rate limiting & error handler middlewares
+│   ├── models/                 # Mongoose schemas: Users, Movies, Theatres, Shows, Seats, Bookings, Payments, Notifications
+│   ├── routes/                 # Express API routes (auth, movies, showtimes, theatres, bookings, notifications, upload)
+│   ├── server.js               # Express & Socket.io entrypoint & static client server
 │   └── package.json
+├── streamlit_app.py            # Streamlit Cloud deployment entrypoint
+├── app.py                      # Streamlit alias entrypoint
+├── requirements.txt            # Python dependencies (streamlit, qrcode, pillow)
 ├── package.json                # Root orchestration scripts
 └── README.md
 ```
@@ -236,6 +239,6 @@ git push -u origin main
 
 ## 👨‍💻 Author
 
-- **Developer:** Anushka Rathore
+- **Developer:** Yash Shukla
 - **Project Topic:** IMovies - Movie ticket booking made simple
 - **Specialization:** Full Stack Web Development (MERN Stack)

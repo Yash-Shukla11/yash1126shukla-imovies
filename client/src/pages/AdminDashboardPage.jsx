@@ -5,8 +5,10 @@ import LoadingSpinner from '../components/LoadingSpinner';
 const AdminDashboardPage = () => {
   const [stats, setStats] = useState(null);
   const [movies, setMovies] = useState([]);
+  const [theatres, setTheatres] = useState([]);
   const [showtimes, setShowtimes] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('movies');
   const [notification, setNotification] = useState('');
@@ -30,6 +32,15 @@ const AdminDashboardPage = () => {
     status: 'Now Showing',
   });
 
+  // Add Theatre Form state
+  const [showAddTheatreModal, setShowAddTheatreModal] = useState(false);
+  const [theatreForm, setTheatreForm] = useState({
+    name: '',
+    city: 'Mumbai',
+    address: '',
+    contactNumber: '+91 22 2490 1234',
+  });
+
   // Add Showtime Form state
   const [showAddShowtimeModal, setShowAddShowtimeModal] = useState(false);
   const [showtimeForm, setShowtimeForm] = useState({
@@ -43,17 +54,21 @@ const AdminDashboardPage = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, moviesRes, showtimesRes, bookingsRes] = await Promise.all([
+      const [statsRes, moviesRes, theatresRes, showtimesRes, bookingsRes, paymentsRes] = await Promise.all([
         api.get('/admin/stats'),
         api.get('/movies'),
+        api.get('/theatres'),
         api.get('/showtimes'),
         api.get('/admin/bookings'),
+        api.get('/payments'),
       ]);
 
       if (statsRes.data.success) setStats(statsRes.data.data);
       if (moviesRes.data.success) setMovies(moviesRes.data.data);
+      if (theatresRes.data.success) setTheatres(theatresRes.data.data);
       if (showtimesRes.data.success) setShowtimes(showtimesRes.data.data);
       if (bookingsRes.data.success) setBookings(bookingsRes.data.data);
+      if (paymentsRes.data.success) setPayments(paymentsRes.data.data);
     } catch (err) {
       console.error('Error fetching admin data:', err);
     } finally {
@@ -99,6 +114,20 @@ const AdminDashboardPage = () => {
     }
   };
 
+  const handleCreateTheatre = async (e) => {
+    e.preventDefault();
+    try {
+      const { data } = await api.post('/theatres', theatreForm);
+      if (data.success) {
+        setNotification('Cinema Theatre registered successfully!');
+        setShowAddTheatreModal(false);
+        fetchData();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to add theatre');
+    }
+  };
+
   const handleCreateShowtime = async (e) => {
     e.preventDefault();
     if (!showtimeForm.movie) {
@@ -141,15 +170,22 @@ const AdminDashboardPage = () => {
         <div>
           <span className="badge bg-warning text-dark px-2 py-1 mb-1">PLATFORM ADMIN</span>
           <h1 className="fw-bold text-white brand-font mb-0">IMovies Command Center</h1>
-          <p className="text-secondary small mb-0">System metrics, catalog management, and booking records</p>
+          <p className="text-secondary small mb-0">System metrics, movie catalog, theatres, and financial audit logs</p>
         </div>
-        <div className="d-flex gap-2 mt-3 mt-md-0">
+        <div className="d-flex flex-wrap gap-2 mt-3 mt-md-0">
           <button
             type="button"
             className="btn btn-cinema btn-sm"
             onClick={() => setShowAddMovieModal(true)}
           >
-            <i className="bi bi-plus-circle me-1"></i> Add New Movie
+            <i className="bi bi-plus-circle me-1"></i> Add Movie
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline-info btn-sm"
+            onClick={() => setShowAddTheatreModal(true)}
+          >
+            <i className="bi bi-building-add me-1"></i> Add Theatre
           </button>
           <button
             type="button"
@@ -174,28 +210,28 @@ const AdminDashboardPage = () => {
           <div className="glass-panel p-3">
             <div className="text-secondary small mb-1">Total Revenue</div>
             <h3 className="fw-extrabold text-success brand-font mb-0">₹{stats?.totalRevenue?.toLocaleString() || 0}</h3>
-            <div className="text-muted small mt-1">Confirmed ticket sales</div>
+            <div className="text-muted small mt-1">{payments.length} processed payments</div>
           </div>
         </div>
         <div className="col-md-3 col-sm-6">
           <div className="glass-panel p-3">
             <div className="text-secondary small mb-1">Tickets Sold</div>
             <h3 className="fw-extrabold text-warning brand-font mb-0">{stats?.totalTicketsSold || 0}</h3>
-            <div className="text-muted small mt-1">{stats?.activeBookingsCount || 0} reservations</div>
+            <div className="text-muted small mt-1">{stats?.activeBookingsCount || 0} active reservations</div>
           </div>
         </div>
         <div className="col-md-3 col-sm-6">
           <div className="glass-panel p-3">
-            <div className="text-secondary small mb-1">Active Movies</div>
-            <h3 className="fw-extrabold text-danger brand-font mb-0">{stats?.totalMovies || 0}</h3>
-            <div className="text-muted small mt-1">{stats?.totalShowtimes || 0} live showtimes</div>
+            <div className="text-secondary small mb-1">Cinema Theatres</div>
+            <h3 className="fw-extrabold text-primary brand-font mb-0">{theatres.length}</h3>
+            <div className="text-muted small mt-1">{showtimes.length} live showtimes</div>
           </div>
         </div>
         <div className="col-md-3 col-sm-6">
           <div className="glass-panel p-3">
             <div className="text-secondary small mb-1">Registered Users</div>
             <h3 className="fw-extrabold text-info brand-font mb-0">{stats?.totalUsers || 0}</h3>
-            <div className="text-muted small mt-1">Customer profiles</div>
+            <div className="text-muted small mt-1">Platform customer accounts</div>
           </div>
         </div>
       </div>
@@ -204,26 +240,42 @@ const AdminDashboardPage = () => {
       <ul className="nav nav-pills gap-2 mb-4 p-2 bg-dark rounded-4 border border-secondary border-opacity-25">
         <li className="nav-item">
           <button
-            className={`nav-link rounded-pill px-4 ${activeTab === 'movies' ? 'active bg-danger' : 'text-secondary'}`}
+            className={`nav-link rounded-pill px-3 ${activeTab === 'movies' ? 'active bg-danger' : 'text-secondary'}`}
             onClick={() => setActiveTab('movies')}
           >
-            <i className="bi bi-camera-reels me-2"></i> Movies ({movies.length})
+            <i className="bi bi-camera-reels me-1"></i> Movies ({movies.length})
           </button>
         </li>
         <li className="nav-item">
           <button
-            className={`nav-link rounded-pill px-4 ${activeTab === 'showtimes' ? 'active bg-danger' : 'text-secondary'}`}
+            className={`nav-link rounded-pill px-3 ${activeTab === 'theatres' ? 'active bg-danger' : 'text-secondary'}`}
+            onClick={() => setActiveTab('theatres')}
+          >
+            <i className="bi bi-building me-1"></i> Theatres ({theatres.length})
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link rounded-pill px-3 ${activeTab === 'showtimes' ? 'active bg-danger' : 'text-secondary'}`}
             onClick={() => setActiveTab('showtimes')}
           >
-            <i className="bi bi-calendar-event me-2"></i> Showtimes ({showtimes.length})
+            <i className="bi bi-calendar-event me-1"></i> Showtimes ({showtimes.length})
           </button>
         </li>
         <li className="nav-item">
           <button
-            className={`nav-link rounded-pill px-4 ${activeTab === 'bookings' ? 'active bg-danger' : 'text-secondary'}`}
+            className={`nav-link rounded-pill px-3 ${activeTab === 'bookings' ? 'active bg-danger' : 'text-secondary'}`}
             onClick={() => setActiveTab('bookings')}
           >
-            <i className="bi bi-receipt me-2"></i> All Bookings ({bookings.length})
+            <i className="bi bi-receipt me-1"></i> Bookings ({bookings.length})
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link rounded-pill px-3 ${activeTab === 'payments' ? 'active bg-danger' : 'text-secondary'}`}
+            onClick={() => setActiveTab('payments')}
+          >
+            <i className="bi bi-credit-card me-1"></i> Payments ({payments.length})
           </button>
         </li>
       </ul>
@@ -292,14 +344,52 @@ const AdminDashboardPage = () => {
         </div>
       )}
 
-      {/* TAB 2: SHOWTIMES */}
+      {/* TAB 2: THEATRES */}
+      {activeTab === 'theatres' && (
+        <div className="glass-panel p-4">
+          <div className="table-responsive">
+            <table className="table table-dark table-hover align-middle mb-0">
+              <thead>
+                <tr className="text-secondary small border-secondary">
+                  <th>Theatre Name</th>
+                  <th>City / Location</th>
+                  <th>Screens</th>
+                  <th>Amenities</th>
+                  <th>Contact</th>
+                </tr>
+              </thead>
+              <tbody>
+                {theatres.map((t) => (
+                  <tr key={t._id} className="border-secondary border-opacity-25">
+                    <td className="fw-bold text-white">
+                      <i className="bi bi-geo-alt-fill text-danger me-2"></i>
+                      {t.name}
+                    </td>
+                    <td>
+                      <span className="badge bg-info bg-opacity-25 text-info">{t.location?.city || 'Mumbai'}</span>
+                      <div className="text-secondary small">{t.location?.address}</div>
+                    </td>
+                    <td>{t.screens?.length || 1} Screens</td>
+                    <td>
+                      <div className="small text-secondary">{t.amenities?.slice(0, 3).join(', ')}</div>
+                    </td>
+                    <td className="small text-secondary">{t.contactNumber}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: SHOWTIMES */}
       {activeTab === 'showtimes' && (
         <div className="glass-panel p-4">
           <div className="table-responsive">
             <table className="table table-dark table-hover align-middle mb-0">
               <thead>
                 <tr className="text-secondary small border-secondary">
-                  <th>Theater</th>
+                  <th>Theatre</th>
                   <th>Screen & Format</th>
                   <th>Date</th>
                   <th>Time</th>
@@ -339,7 +429,7 @@ const AdminDashboardPage = () => {
         </div>
       )}
 
-      {/* TAB 3: ALL BOOKINGS */}
+      {/* TAB 4: ALL BOOKINGS */}
       {activeTab === 'bookings' && (
         <div className="glass-panel p-4">
           <div className="table-responsive">
@@ -348,7 +438,7 @@ const AdminDashboardPage = () => {
                 <tr className="text-secondary small border-secondary">
                   <th>Ref ID</th>
                   <th>Movie</th>
-                  <th>Theater & Time</th>
+                  <th>Theatre & Time</th>
                   <th>Seats</th>
                   <th>Amount</th>
                   <th>Date</th>
@@ -378,6 +468,47 @@ const AdminDashboardPage = () => {
                   <tr>
                     <td colSpan="7" className="text-center py-4 text-secondary">
                       No customer bookings recorded yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: PAYMENTS AUDIT */}
+      {activeTab === 'payments' && (
+        <div className="glass-panel p-4">
+          <div className="table-responsive">
+            <table className="table table-dark table-hover align-middle mb-0">
+              <thead>
+                <tr className="text-secondary small border-secondary">
+                  <th>Txn ID</th>
+                  <th>Method</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Paid At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((p) => (
+                  <tr key={p._id} className="border-secondary border-opacity-25">
+                    <td className="font-monospace text-info fw-bold">{p.transactionId}</td>
+                    <td>{p.paymentMethod}</td>
+                    <td className="text-white fw-bold">₹{p.amount}</td>
+                    <td>
+                      <span className={`badge ${p.paymentStatus === 'Success' ? 'bg-success' : 'bg-warning text-dark'}`}>
+                        {p.paymentStatus}
+                      </span>
+                    </td>
+                    <td className="text-secondary small">{new Date(p.paidAt).toLocaleString()}</td>
+                  </tr>
+                ))}
+                {payments.length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="text-center py-4 text-secondary">
+                      No payment transactions recorded yet.
                     </td>
                   </tr>
                 )}
@@ -500,26 +631,6 @@ const AdminDashboardPage = () => {
                         onChange={(e) => setMovieForm({ ...movieForm, bannerUrl: e.target.value })}
                       />
                     </div>
-
-                    <div className="col-md-6">
-                      <label className="form-label small text-secondary">Director</label>
-                      <input
-                        type="text"
-                        className="form-control bg-dark text-white border-secondary"
-                        value={movieForm.director}
-                        onChange={(e) => setMovieForm({ ...movieForm, director: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="col-md-6">
-                      <label className="form-label small text-secondary">Cast (comma separated)</label>
-                      <input
-                        type="text"
-                        className="form-control bg-dark text-white border-secondary"
-                        value={movieForm.cast}
-                        onChange={(e) => setMovieForm({ ...movieForm, cast: e.target.value })}
-                      />
-                    </div>
                   </div>
                 </div>
 
@@ -530,6 +641,60 @@ const AdminDashboardPage = () => {
                   <button type="submit" className="btn btn-cinema">
                     Save & Publish Movie
                   </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Add Theatre */}
+      {showAddTheatreModal && (
+        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content bg-dark text-white border-secondary">
+              <div className="modal-header border-secondary border-opacity-25">
+                <h5 className="modal-title fw-bold">Register Cinema Theatre</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowAddTheatreModal(false)}></button>
+              </div>
+              <form onSubmit={handleCreateTheatre}>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label small text-secondary">Theatre Name *</label>
+                    <input
+                      type="text"
+                      className="form-control bg-dark text-white border-secondary"
+                      placeholder="e.g. INOX Megaplex"
+                      value={theatreForm.name}
+                      onChange={(e) => setTheatreForm({ ...theatreForm, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small text-secondary">City *</label>
+                    <input
+                      type="text"
+                      className="form-control bg-dark text-white border-secondary"
+                      placeholder="e.g. Mumbai, Delhi, Bangalore"
+                      value={theatreForm.city}
+                      onChange={(e) => setTheatreForm({ ...theatreForm, city: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small text-secondary">Address</label>
+                    <input
+                      type="text"
+                      className="form-control bg-dark text-white border-secondary"
+                      placeholder="Mall / Street address"
+                      value={theatreForm.address}
+                      onChange={(e) => setTheatreForm({ ...theatreForm, address: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer border-secondary border-opacity-25">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowAddTheatreModal(false)}>Cancel</button>
+                  <button type="submit" className="btn btn-cinema">Register Theatre</button>
                 </div>
               </form>
             </div>
@@ -564,14 +729,17 @@ const AdminDashboardPage = () => {
                   </div>
 
                   <div className="mb-3">
-                    <label className="form-label small text-secondary">Theater Hall *</label>
-                    <input
-                      type="text"
-                      className="form-control bg-dark text-white border-secondary"
+                    <label className="form-label small text-secondary">Theatre *</label>
+                    <select
+                      className="form-select bg-dark text-white border-secondary"
                       value={showtimeForm.theater}
                       onChange={(e) => setShowtimeForm({ ...showtimeForm, theater: e.target.value })}
                       required
-                    />
+                    >
+                      {theatres.map((t) => (
+                        <option key={t._id} value={t.name}>{t.name} ({t.location?.city})</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="row g-2 mb-3">
@@ -599,7 +767,7 @@ const AdminDashboardPage = () => {
                   </div>
 
                   <div className="mb-3">
-                    <label className="form-label small text-secondary">Format</label>
+                    <label className="form-label small text-secondary">Screen Format</label>
                     <select
                       className="form-select bg-dark text-white border-secondary"
                       value={showtimeForm.format}

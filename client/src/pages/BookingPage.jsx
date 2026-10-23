@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import io from 'socket.io-client';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import SeatMap from '../components/SeatMap';
@@ -12,10 +13,47 @@ const BookingPage = () => {
 
   const [showtime, setShowtime] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState([]);
+  const [heldSeats, setHeldSeats] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('Card');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [realtimeNotice, setRealtimeNotice] = useState('');
+
+  const socketRef = useRef(null);
+
+  useEffect(() => {
+    // Connect to Socket.io for real-time seat lock tracking
+    socketRef.current = io('/', { transports: ['websocket', 'polling'] });
+
+    socketRef.current.emit('join-showtime', showtimeId);
+
+    socketRef.current.on('seat-held', ({ seatNumber }) => {
+      setHeldSeats((prev) => [...prev, seatNumber]);
+      setRealtimeNotice(`Seat ${seatNumber} is currently selected by another moviegoer.`);
+      setTimeout(() => setRealtimeNotice(''), 4000);
+    });
+
+    socketRef.current.on('seat-unheld', ({ seatNumber }) => {
+      setHeldSeats((prev) => prev.filter((s) => s !== seatNumber));
+    });
+
+    socketRef.current.on('seats-updated', ({ showtimeId: updatedId, bookedSeats, availableSeats }) => {
+      if (updatedId === showtimeId) {
+        setShowtime((prev) => {
+          if (!prev) return prev;
+          const newSeats = prev.seats.map((s) =>
+            bookedSeats.includes(s.seatNumber) ? { ...s, isBooked: true } : s
+          );
+          return { ...prev, seats: newSeats, availableSeats };
+        });
+      }
+    });
+
+    return () => {
+      if (socketRef.current) socketRef.current.disconnect();
+    };
+  }, [showtimeId]);
 
   useEffect(() => {
     const fetchShowtime = async () => {
@@ -37,8 +75,14 @@ const BookingPage = () => {
   const handleSeatClick = (seat) => {
     if (selectedSeats.includes(seat.seatNumber)) {
       setSelectedSeats(selectedSeats.filter((s) => s !== seat.seatNumber));
+      if (socketRef.current) {
+        socketRef.current.emit('seat-release', { showtimeId, seatNumber: seat.seatNumber });
+      }
     } else {
       setSelectedSeats([...selectedSeats, seat.seatNumber]);
+      if (socketRef.current) {
+        socketRef.current.emit('seat-select', { showtimeId, seatNumber: seat.seatNumber, user: user?.name || 'Guest' });
+      }
     }
   };
 
@@ -71,7 +115,6 @@ const BookingPage = () => {
     }
 
     if (!user) {
-      // Save intent in sessionStorage and redirect to login
       sessionStorage.setItem('pending_booking', JSON.stringify({ showtimeId, selectedSeats }));
       navigate('/login', { state: { from: `/book/${showtimeId}` } });
       return;
@@ -113,12 +156,21 @@ const BookingPage = () => {
           </div>
         </div>
 
-        <div className="text-md-end mt-2 mt-md-0">
+        <div className="text-md-end mt-2 mt-md-0 d-flex align-items-center gap-2">
+          <span className="badge bg-info bg-opacity-25 text-info border border-info border-opacity-25 px-2 py-1 small">
+            <i className="bi bi-broadcast me-1"></i> Live Real-Time Sync
+          </span>
           <span className="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25 px-3 py-2 fs-6">
             <i className="bi bi-check-circle me-1"></i> {showtime.availableSeats} Seats Available
           </span>
         </div>
       </div>
+
+      {realtimeNotice && (
+        <div className="alert alert-warning py-2 small d-flex align-items-center gap-2">
+          <i className="bi bi-info-circle-fill"></i> {realtimeNotice}
+        </div>
+      )}
 
       {error && (
         <div className="alert alert-danger alert-dismissible fade show" role="alert">
@@ -189,7 +241,7 @@ const BookingPage = () => {
                 Select Payment Mode:
               </label>
               <div className="d-flex flex-column gap-2">
-                {['Card', 'UPI', 'NetBanking'].map((method) => (
+                {['Card', 'UPI', 'NetBanking', 'Wallet'].map((method) => (
                   <label
                     key={method}
                     className={`p-2 px-3 rounded-3 border d-flex align-items-center justify-content-between cursor-pointer ${
@@ -209,7 +261,7 @@ const BookingPage = () => {
                       />
                       <span className="small fw-semibold">{method === 'Card' ? 'Credit / Debit Card' : method}</span>
                     </div>
-                    <i className={`bi ${method === 'Card' ? 'bi-credit-card' : method === 'UPI' ? 'bi-phone' : 'bi-bank'}`}></i>
+                    <i className={`bi ${method === 'Card' ? 'bi-credit-card' : method === 'UPI' ? 'bi-phone' : method === 'Wallet' ? 'bi-wallet2' : 'bi-bank'}`}></i>
                   </label>
                 ))}
               </div>

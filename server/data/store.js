@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
-const { sampleMovies, generateShowtimes, generateSeats } = require('./sampleData');
+const { sampleMovies, generateShowtimes, generateSeats, sampleTheaters } = require('./sampleData');
 
 const DB_FILE = path.join(__dirname, 'db.json');
 
@@ -9,38 +9,70 @@ class DataStore {
   constructor() {
     this.users = [];
     this.movies = [];
+    this.theatres = [];
     this.showtimes = [];
     this.bookings = [];
+    this.payments = [];
+    this.notifications = [];
     this.initialized = false;
+    this.io = null; // Socket.io instance
+  }
+
+  setSocketIO(io) {
+    this.io = io;
   }
 
   async init() {
     if (this.initialized) return;
 
-    // Check if db.json exists
     if (fs.existsSync(DB_FILE)) {
       try {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
         const data = JSON.parse(raw);
         this.users = data.users || [];
         this.movies = data.movies || [];
+        this.theatres = data.theatres || [];
         this.showtimes = data.showtimes || [];
         this.bookings = data.bookings || [];
+        this.payments = data.payments || [];
+        this.notifications = data.notifications || [];
         this.initialized = true;
-        console.log(`[DataStore] Loaded ${this.movies.length} movies, ${this.showtimes.length} showtimes, and ${this.users.length} users from cache.`);
+
+        if (this.theatres.length === 0) {
+          this.seedTheatres();
+        }
         return;
       } catch (err) {
-        console.warn('[DataStore] Corrupted db.json, re-seeding default data.');
+        console.warn('[DataStore] Error reading db.json, re-seeding.');
       }
     }
 
     await this.seedDefaults();
   }
 
+  seedTheatres() {
+    this.theatres = sampleTheaters.map((t, idx) => ({
+      _id: `65f404a4b4c4d4e4f400000${idx + 1}`,
+      name: t.name,
+      location: {
+        address: `${t.name}, High Street`,
+        city: t.city || 'Mumbai',
+        state: 'Maharashtra',
+        zipCode: '400001',
+      },
+      screens: t.screens.map((s, sIdx) => ({
+        screenNumber: `Screen ${sIdx + 1}`,
+        screenType: t.format || '2D',
+        totalCapacity: 60,
+      })),
+      amenities: ['4K Laser Projection', 'Dolby Atmos 7.1', 'Gourmet Food', 'Recliner Loungers', 'Valet Parking'],
+      contactNumber: '+91 22 2490 1234',
+      createdAt: new Date().toISOString(),
+    }));
+  }
+
   async seedDefaults() {
-    console.log('[DataStore] Initializing default seed data...');
-    
-    // Hash default passwords
+    console.log('[DataStore] Seeding default cinema dataset...');
     const salt = await bcrypt.genSalt(10);
     const adminPasswordHash = await bcrypt.hash('admin123', salt);
     const userPasswordHash = await bcrypt.hash('user123', salt);
@@ -69,12 +101,15 @@ class DataStore {
     ];
 
     this.movies = [...sampleMovies];
+    this.seedTheatres();
     this.showtimes = generateShowtimes(this.movies);
     this.bookings = [];
+    this.payments = [];
+    this.notifications = [];
 
     this.saveToFile();
     this.initialized = true;
-    console.log(`[DataStore] Successfully seeded: ${this.movies.length} movies, ${this.showtimes.length} showtimes, ${this.users.length} users.`);
+    console.log(`[DataStore] Seeded: ${this.movies.length} movies, ${this.theatres.length} theatres, ${this.showtimes.length} showtimes.`);
   }
 
   saveToFile() {
@@ -82,8 +117,11 @@ class DataStore {
       const data = {
         users: this.users,
         movies: this.movies,
+        theatres: this.theatres,
         showtimes: this.showtimes,
         bookings: this.bookings,
+        payments: this.payments,
+        notifications: this.notifications,
       };
       fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
@@ -97,9 +135,7 @@ class DataStore {
     const u = this.users.find((user) => user.email.toLowerCase() === email.toLowerCase());
     if (!u) return null;
     const userCopy = { ...u };
-    if (!includePassword) {
-      delete userCopy.password;
-    }
+    if (!includePassword) delete userCopy.password;
     return userCopy;
   }
 
@@ -129,12 +165,11 @@ class DataStore {
 
     this.users.push(newUser);
     this.saveToFile();
-
     const { password, ...created } = newUser;
     return created;
   }
 
-  // --- Movie Operations ---
+  // --- Movie Operations with Search, Filter & Pagination ---
   async getMovies(filter = {}) {
     await this.init();
     let result = [...this.movies];
@@ -145,8 +180,8 @@ class DataStore {
         (m) =>
           m.title.toLowerCase().includes(s) ||
           m.description.toLowerCase().includes(s) ||
-          m.director.toLowerCase().includes(s) ||
-          m.cast.some((c) => c.toLowerCase().includes(s))
+          (m.director && m.director.toLowerCase().includes(s)) ||
+          (m.cast && m.cast.some((c) => c.toLowerCase().includes(s)))
       );
     }
 
@@ -176,7 +211,16 @@ class DataStore {
       result.sort((a, b) => a.title.localeCompare(b.title));
     }
 
-    return result;
+    const total = result.length;
+    if (filter.page && filter.limit) {
+      const page = parseInt(filter.page, 10) || 1;
+      const limit = parseInt(filter.limit, 10) || 10;
+      const startIndex = (page - 1) * limit;
+      result = result.slice(startIndex, startIndex + limit);
+      return { total, page, limit, data: result };
+    }
+
+    return { total, data: result };
   }
 
   async getMovieById(id) {
@@ -210,8 +254,6 @@ class DataStore {
     };
 
     this.movies.unshift(newMovie);
-
-    // Also auto-generate sample showtimes for the new movie
     const newShowtimes = generateShowtimes([newMovie]);
     this.showtimes.push(...newShowtimes);
 
@@ -241,10 +283,39 @@ class DataStore {
     if (index === -1) return false;
 
     this.movies.splice(index, 1);
-    // remove showtimes for this movie
     this.showtimes = this.showtimes.filter((s) => s.movie !== id.toString());
     this.saveToFile();
     return true;
+  }
+
+  // --- Theatre Operations ---
+  async getTheatres(city = null) {
+    await this.init();
+    if (city && city !== 'All') {
+      return this.theatres.filter((t) => t.location?.city?.toLowerCase() === city.toLowerCase());
+    }
+    return [...this.theatres];
+  }
+
+  async getTheatreById(id) {
+    await this.init();
+    return this.theatres.find((t) => t._id === id.toString()) || null;
+  }
+
+  async createTheatre(data) {
+    await this.init();
+    const newTheatre = {
+      _id: '65f404a4b4c4d4e4f4' + Math.random().toString(16).substring(2, 8),
+      name: data.name,
+      location: data.location || { city: data.city || 'Mumbai', address: data.address || '' },
+      screens: data.screens || [{ screenNumber: 'Screen 1', screenType: '2D', totalCapacity: 60 }],
+      amenities: data.amenities || ['Dolby Atmos', 'Recliner Seats'],
+      contactNumber: data.contactNumber || '+91 22 2490 1234',
+      createdAt: new Date().toISOString(),
+    };
+    this.theatres.push(newTheatre);
+    this.saveToFile();
+    return newTheatre;
   }
 
   // --- Showtime Operations ---
@@ -255,13 +326,14 @@ class DataStore {
     if (filter.movie) {
       result = result.filter((s) => s.movie === filter.movie.toString());
     }
-
     if (filter.date) {
       result = result.filter((s) => s.date === filter.date);
     }
-
     if (filter.theater) {
       result = result.filter((s) => s.theater === filter.theater);
+    }
+    if (filter.city) {
+      result = result.filter((s) => s.city?.toLowerCase() === filter.city.toLowerCase());
     }
 
     return result;
@@ -271,8 +343,6 @@ class DataStore {
     await this.init();
     const st = this.showtimes.find((s) => s._id === id.toString());
     if (!st) return null;
-
-    // Attach movie details
     const movie = this.movies.find((m) => m._id === st.movie);
     return {
       ...st,
@@ -315,7 +385,7 @@ class DataStore {
     return true;
   }
 
-  // --- Booking Operations ---
+  // --- Booking, Payment & Notification Operations ---
   async createBooking({ userId, showtimeId, seats, paymentMethod = 'Card' }) {
     await this.init();
     const st = this.showtimes.find((s) => s._id === showtimeId.toString());
@@ -324,7 +394,6 @@ class DataStore {
     const movie = this.movies.find((m) => m._id === st.movie);
     if (!movie) throw new Error('Movie not found');
 
-    // Check if seats are available
     const alreadyBooked = [];
     const seatDetails = [];
     let subtotal = 0;
@@ -350,7 +419,7 @@ class DataStore {
       throw new Error(`Seats already booked: ${alreadyBooked.join(', ')}`);
     }
 
-    // Mark seats as booked in showtime
+    // Mark seats as booked
     st.seats.forEach((s) => {
       if (seats.includes(s.seatNumber)) {
         s.isBooked = true;
@@ -359,14 +428,14 @@ class DataStore {
     });
     st.availableSeats = st.seats.filter((s) => !s.isBooked).length;
 
-    const convenienceFee = Math.round(subtotal * 0.05); // 5%
-    const tax = Math.round((subtotal + convenienceFee) * 0.18); // 18% GST
+    const convenienceFee = Math.round(subtotal * 0.05);
+    const tax = Math.round((subtotal + convenienceFee) * 0.18);
     const totalAmount = subtotal + convenienceFee + tax;
-
     const bookingReference = 'IMOV-' + Math.floor(100000 + Math.random() * 900000);
+    const bookingId = '65f303a3b3c3d3e3f3' + Math.random().toString(16).substring(2, 8);
 
     const booking = {
-      _id: '65f303a3b3c3d3e3f3' + Math.random().toString(16).substring(2, 8),
+      _id: bookingId,
       bookingReference,
       user: userId,
       movie: st.movie,
@@ -407,8 +476,47 @@ class DataStore {
     };
 
     this.bookings.unshift(booking);
+
+    // Create Payment Record (Collection 7: Payments)
+    const transactionId = 'TXN-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    const payment = {
+      _id: '65f505a5b5c5d5e5f5' + Math.random().toString(16).substring(2, 8),
+      booking: bookingId,
+      user: userId,
+      transactionId,
+      paymentMethod,
+      amount: totalAmount,
+      currency: 'INR',
+      paymentStatus: 'Success',
+      paidAt: new Date().toISOString(),
+    };
+    this.payments.unshift(payment);
+
+    // Create Notification Record (Collection 8: Notifications)
+    const notification = {
+      _id: '65f606a6b6c6d6e6f6' + Math.random().toString(16).substring(2, 8),
+      user: userId,
+      title: 'Booking Confirmed!',
+      message: `Your tickets for ${movie.title} (${seats.join(', ')}) at ${st.theater} are confirmed. Reference: ${bookingReference}`,
+      type: 'BookingConfirmation',
+      relatedId: bookingReference,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+    };
+    this.notifications.unshift(notification);
+
     this.saveToFile();
-    return booking;
+
+    // Broadcast real-time seat update via Socket.io
+    if (this.io) {
+      this.io.emit('seats-updated', {
+        showtimeId,
+        bookedSeats: seats,
+        availableSeats: st.availableSeats,
+      });
+    }
+
+    return { ...booking, payment };
   }
 
   async getBookingsByUser(userId) {
@@ -416,9 +524,13 @@ class DataStore {
     return this.bookings.filter((b) => b.user === userId.toString());
   }
 
-  async getAllBookings() {
+  async getAllBookings(filter = {}) {
     await this.init();
-    return [...this.bookings];
+    let result = [...this.bookings];
+    if (filter.status) {
+      result = result.filter((b) => b.bookingStatus === filter.status);
+    }
+    return result;
   }
 
   async getBookingById(id) {
@@ -454,14 +566,69 @@ class DataStore {
     booking.bookingStatus = 'Cancelled';
     booking.paymentStatus = 'Refunded';
 
+    // Record Refund Payment
+    this.payments.unshift({
+      _id: '65f505a5b5c5d5e5f5' + Math.random().toString(16).substring(2, 8),
+      booking: booking._id,
+      user: booking.user,
+      transactionId: 'REF-' + Math.random().toString(36).substring(2, 10).toUpperCase(),
+      paymentMethod: booking.paymentMethod,
+      amount: booking.totalAmount,
+      currency: 'INR',
+      paymentStatus: 'Refunded',
+      paidAt: new Date().toISOString(),
+    });
+
+    // Create Cancellation Notification
+    this.notifications.unshift({
+      _id: '65f606a6b6c6d6e6f6' + Math.random().toString(16).substring(2, 8),
+      user: booking.user,
+      title: 'Booking Cancelled',
+      message: `Your booking ${booking.bookingReference} has been cancelled. Full refund of ₹${booking.totalAmount} will be processed.`,
+      type: 'BookingCancellation',
+      relatedId: booking.bookingReference,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+    });
+
     this.saveToFile();
+
+    if (this.io && st) {
+      this.io.emit('seats-updated', {
+        showtimeId: st._id,
+        releasedSeats: booking.seats,
+        availableSeats: st.availableSeats,
+      });
+    }
+
     return booking;
+  }
+
+  async getNotifications(userId) {
+    await this.init();
+    return this.notifications.filter((n) => n.user === userId.toString());
+  }
+
+  async markNotificationRead(id, userId) {
+    await this.init();
+    const notif = this.notifications.find((n) => n._id === id.toString() && n.user === userId.toString());
+    if (notif) {
+      notif.isRead = true;
+      this.saveToFile();
+    }
+    return notif;
+  }
+
+  async getPayments() {
+    await this.init();
+    return [...this.payments];
   }
 
   async getAdminStats() {
     await this.init();
     const totalUsers = this.users.length;
     const totalMovies = this.movies.length;
+    const totalTheatres = this.theatres.length;
     const totalShowtimes = this.showtimes.length;
     const totalBookings = this.bookings.length;
     const activeBookings = this.bookings.filter((b) => b.bookingStatus === 'Confirmed');
@@ -471,6 +638,7 @@ class DataStore {
     return {
       totalUsers,
       totalMovies,
+      totalTheatres,
       totalShowtimes,
       totalBookings,
       activeBookingsCount: activeBookings.length,
