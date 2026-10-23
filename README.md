@@ -1,5 +1,6 @@
 # 🎬 IMovies - Movie Ticket Booking Made Simple
 
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://yash1126shukla-imovies-ykkzyr9fdst7apc2ns2uud.streamlit.app/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Express.js](https://img.shields.io/badge/Express.js-4.21-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
@@ -13,8 +14,9 @@
 
 ## 📌 Project Links for Mentor Evaluation
 
-- **Live Demo Link:** `http://localhost:5000` *(Local production build)* | *(Deployable to Render/Vercel/Railway)*
-- **GitHub Repository:** [https://github.com/Yash-Shukla11/yash1126shukla-imovies](https://github.com/Yash-Shukla11/yash1126shukla-imovies)
+- 🌐 **Live Demo Link (Streamlit Cloud):** [https://yash1126shukla-imovies-ykkzyr9fdst7apc2ns2uud.streamlit.app/](https://yash1126shukla-imovies-ykkzyr9fdst7apc2ns2uud.streamlit.app/)
+- 💻 **GitHub Repository:** [https://github.com/Yash-Shukla11/yash1126shukla-imovies](https://github.com/Yash-Shukla11/yash1126shukla-imovies)
+- 🖥️ **Local Production Server:** `http://localhost:5000`
 
 ---
 
